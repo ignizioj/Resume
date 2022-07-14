@@ -1,0 +1,134 @@
+Select * from covid_deaths
+order by 3,4
+
+-- Select * from covid_vaccinations
+-- order by 3,4
+
+--Select data we will use
+Select location, date_, total_cases, new_cases, total_deaths, population
+from covid_deaths
+order by 1,2
+
+--total cases vs total deaths as percent
+--likelihood for dying if you get covid
+Select location, date_, total_cases, total_deaths, (cast(total_deaths as decimal)/total_cases)*100 as death_percent
+from covid_deaths
+where location like '%States%'
+order by 1,2
+
+--looking at total cases vs population 
+--which pop has the most cases? (just filter by country), this is looking at U.S.
+Select location, date_, total_cases,population,(cast(total_cases as decimal)/population)*100 as population_infection_rate
+from covid_deaths
+where location like '%States%'
+order by 1,2
+
+
+--looking at countries with highest rate of infection compared to population 
+Select location, max(total_cases) as Highest_infection_count,population,max((cast(total_cases as decimal)/population))*100 as percent_population_infected
+from covid_deaths
+--where location like '%States%'
+group by population, location
+order by percent_population_infected desc
+
+
+--looking at which countries have the highest death count 
+Select location, max(total_deaths) as death_count 
+from covid_deaths
+where total_deaths is not null and continent is not null
+group by location 
+order by death_count desc
+
+--now breaking this up by continent, by continent 
+Select continent, max(total_deaths) as death_count 
+from covid_deaths
+where total_deaths is not null and continent is not null
+group by continent 
+order by death_count desc
+
+
+--Global numbers death percentage
+Select  sum(new_cases) as total_cases, SUM(new_deaths) as total_deaths, sum(new_deaths)/sum(new_cases)*100 as death_percent
+from covid_deaths
+--where location like '%States%'
+where continent is not null
+--group by date_
+order by 1,2
+
+
+
+
+--use CTE
+with popvsvac (continent, location, date_, population, new_vaccinations,rolling_people_vaccinated )
+as 
+(
+
+--join the two tables
+--looking at total population vs vaccination
+select covid_deaths.continent, covid_deaths.location, covid_deaths.date_, covid_deaths.population, covid_vaccinations.new_vaccinations 
+,sum(new_vaccinations) over (partition by covid_deaths.location order by covid_deaths.location, covid_deaths.date_) as rolling_people_vaccinated
+
+from covid_deaths
+join covid_vaccinations 
+on covid_deaths.date_ = covid_vaccinations.date_
+and covid_deaths.location = covid_vaccinations.location 
+where covid_deaths.continent is not null 
+--order by 1,2,3
+)
+select * , (rolling_people_vaccinated/population)*100 as percent_vaccinated
+from popvsvac
+ 
+
+--temp table   the same as CTE basically DONT USE THIS 
+create table percent_population_vaccinated
+(
+continent varchar(255),
+location varchar(255),
+date_ date,
+population numeric,
+new_vaccinations numeric,
+rolling_people_vaccinated numeric
+)
+
+
+insert into percent_population_vaccinated
+(
+select covid_deaths.continent, covid_deaths.location, covid_deaths.date_, covid_deaths.population, covid_vaccinations.new_vaccinations 
+,sum(new_vaccinations) over (partition by covid_deaths.location order by covid_deaths.location, covid_deaths.date_) as rolling_people_vaccinated
+
+from covid_deaths
+join covid_vaccinations 
+on covid_deaths.date_ = covid_vaccinations.date_
+and covid_deaths.location = covid_vaccinations.location 
+where covid_deaths.continent is not null 
+--order by 1,2,3
+)
+select * , (rolling_people_vaccinated/population)*100 as percent_vaccinated
+from percent_population_vaccinated
+
+
+--creating view to store data later for visualizations 
+
+create view percent_population_vaccinated as
+select covid_deaths.continent, covid_deaths.location, covid_deaths.date_, covid_deaths.population, covid_vaccinations.new_vaccinations 
+,sum(new_vaccinations) over (partition by covid_deaths.location order by covid_deaths.location, covid_deaths.date_) as rolling_people_vaccinated
+
+from covid_deaths
+join covid_vaccinations 
+on covid_deaths.date_ = covid_vaccinations.date_
+and covid_deaths.location = covid_vaccinations.location 
+where covid_deaths.continent is not null 
+--order by 1,2,3
+
+
+
+--This is the view, CREATE A FEW OF THESE
+select*from percent_population_vaccinated
+
+
+
+
+
+
+
+
